@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Humanizer
 {
@@ -9,22 +10,37 @@ namespace Humanizer
         /// </summary>
         /// <typeparam name="TTargetEnum">The target enum</typeparam>
         /// <param name="input">The string to be converted</param>
+        /// <exception cref="ArgumentException">If TTargetEnum is not an enum</exception>
+        /// <exception cref="NoMatchFoundException">Couldn't find any enum member that matches the string</exception>
         /// <returns></returns>
-        public static Enum DehumanizeTo<TTargetEnum>(this string input) 
+        public static TTargetEnum DehumanizeTo<TTargetEnum>(this string input)
+            where TTargetEnum : struct, IComparable, IFormattable, IConvertible
         {
-            var values = (TTargetEnum[]) Enum.GetValues(typeof (TTargetEnum));
+            return (TTargetEnum)DehumanizeToPrivate(input, typeof(TTargetEnum), OnNoMatch.ThrowsException);
+        }
 
-            foreach (var value in values)
-            {
-                var enumValue = value as Enum;
-                if (enumValue == null)
-                    return null;
+        /// <summary>
+        /// Dehumanizes a string into the Enum it was originally Humanized from!
+        /// </summary>
+        /// <param name="input">The string to be converted</param>
+        /// <param name="targetEnum">The target enum</param>
+        /// <param name="onNoMatch">What to do when input is not matched to the enum.</param>
+        /// <returns></returns>
+        /// <exception cref="NoMatchFoundException">Couldn't find any enum member that matches the string</exception>
+        /// <exception cref="ArgumentException">If targetEnum is not an enum</exception>
+        public static Enum DehumanizeTo(this string input, Type targetEnum, OnNoMatch onNoMatch = OnNoMatch.ThrowsException)
+        {
+            return (Enum)DehumanizeToPrivate(input, targetEnum, onNoMatch);
+        }
 
-                if (string.Equals(enumValue.Humanize(), input, StringComparison.OrdinalIgnoreCase))
-                    return enumValue;
-            }
+        private static object DehumanizeToPrivate(string input, Type targetEnum, OnNoMatch onNoMatch)
+        {
+            var match = Enum.GetValues(targetEnum).Cast<Enum>().FirstOrDefault(value => string.Equals(value.Humanize(), input, StringComparison.OrdinalIgnoreCase));
 
-            return null;
+            if (match == null && onNoMatch == OnNoMatch.ThrowsException)
+                throw new NoMatchFoundException("Couldn't find any enum member that matches the string " + input);
+
+            return match;
         }
     }
 }

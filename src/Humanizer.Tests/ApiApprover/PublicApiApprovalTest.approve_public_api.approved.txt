@@ -58,9 +58,10 @@ public class InflectorExtensions
 {
     public string Camelize(string input) { }
     public string Dasherize(string underscoredWord) { }
+    public string Hyphenate(string underscoredWord) { }
     public string Pascalize(string input) { }
-    public string Pluralize(string word) { }
-    public string Singularize(string word) { }
+    public string Pluralize(string word, Humanizer.Plurality plurality) { }
+    public string Singularize(string word, Humanizer.Plurality plurality) { }
     public string Titleize(string input) { }
     public string Underscore(string input) { }
 }
@@ -83,18 +84,30 @@ public class DefaultFormatter
 {
     public DefaultFormatter() { }
     public string DateHumanize_MultipleDaysAgo(int numberOfDays) { }
+    public string DateHumanize_MultipleDaysFromNow(int numberOfDays) { }
     public string DateHumanize_MultipleHoursAgo(int numberOfHours) { }
+    public string DateHumanize_MultipleHoursFromNow(int numberOfHours) { }
     public string DateHumanize_MultipleMinutesAgo(int numberOfMinutes) { }
+    public string DateHumanize_MultipleMinutesFromNow(int numberOfMinutes) { }
     public string DateHumanize_MultipleMonthsAgo(int numberOfMonths) { }
+    public string DateHumanize_MultipleMonthsFromNow(int numberOfMonths) { }
     public string DateHumanize_MultipleSecondsAgo(int numberOfSeconds) { }
+    public string DateHumanize_MultipleSecondsFromNow(int numberOfSeconds) { }
     public string DateHumanize_MultipleYearsAgo(int numberOfYears) { }
-    public string DateHumanize_NotYet() { }
+    public string DateHumanize_MultipleYearsFromNow(int numberOfYears) { }
+    public string DateHumanize_Now() { }
     public string DateHumanize_SingleDayAgo() { }
+    public string DateHumanize_SingleDayFromNow() { }
     public string DateHumanize_SingleHourAgo() { }
+    public string DateHumanize_SingleHourFromNow() { }
     public string DateHumanize_SingleMinuteAgo() { }
+    public string DateHumanize_SingleMinuteFromNow() { }
     public string DateHumanize_SingleMonthAgo() { }
+    public string DateHumanize_SingleMonthFromNow() { }
     public string DateHumanize_SingleSecondAgo() { }
+    public string DateHumanize_SingleSecondFromNow() { }
     public string DateHumanize_SingleYearAgo() { }
+    public string DateHumanize_SingleYearFromNow() { }
     public string TimeSpanHumanize_MultipleDays(int days) { }
     public string TimeSpanHumanize_MultipleHours(int hours) { }
     public string TimeSpanHumanize_MultipleMilliseconds(int milliSeconds) { }
@@ -113,18 +126,30 @@ public class DefaultFormatter
 public interface IFormatter
 {
     string DateHumanize_MultipleDaysAgo(int numberOfDays);
+    string DateHumanize_MultipleDaysFromNow(int numberOfDays);
     string DateHumanize_MultipleHoursAgo(int numberOfHours);
+    string DateHumanize_MultipleHoursFromNow(int numberOfHours);
     string DateHumanize_MultipleMinutesAgo(int numberOfMinutes);
+    string DateHumanize_MultipleMinutesFromNow(int numberOfMinutes);
     string DateHumanize_MultipleMonthsAgo(int numberOfMonths);
+    string DateHumanize_MultipleMonthsFromNow(int numberOfMonths);
     string DateHumanize_MultipleSecondsAgo(int numberOfSeconds);
+    string DateHumanize_MultipleSecondsFromNow(int numberOfSeconds);
     string DateHumanize_MultipleYearsAgo(int numberOfYears);
-    string DateHumanize_NotYet();
+    string DateHumanize_MultipleYearsFromNow(int numberOfYears);
+    string DateHumanize_Now();
     string DateHumanize_SingleDayAgo();
+    string DateHumanize_SingleDayFromNow();
     string DateHumanize_SingleHourAgo();
+    string DateHumanize_SingleHourFromNow();
     string DateHumanize_SingleMinuteAgo();
+    string DateHumanize_SingleMinuteFromNow();
     string DateHumanize_SingleMonthAgo();
+    string DateHumanize_SingleMonthFromNow();
     string DateHumanize_SingleSecondAgo();
+    string DateHumanize_SingleSecondFromNow();
     string DateHumanize_SingleYearAgo();
+    string DateHumanize_SingleYearFromNow();
     string TimeSpanHumanize_MultipleDays(int days);
     string TimeSpanHumanize_MultipleHours(int hours);
     string TimeSpanHumanize_MultipleMilliseconds(int milliSeconds);
@@ -183,12 +208,28 @@ public class OrdinalizeExtensions
     public string Ordinalize(int number) { }
 }
 
+public enum Plurality
+{
+    CouldBeEither,
+    Plural,
+    Singular,
+    value__,
+}
+
 public class PrepositionsExtensions
 {
     public System.DateTime At(System.DateTime date, int hour, int min, int second, int millisecond) { }
     public System.DateTime AtMidnight(System.DateTime date) { }
     public System.DateTime AtNoon(System.DateTime date) { }
     public System.DateTime In(System.DateTime date, int year) { }
+}
+
+public enum ShowQuantityAs
+{
+    None,
+    Numeric,
+    value__,
+    Words,
 }
 
 public class StringDehumanizeExtensions
@@ -204,7 +245,7 @@ public class StringHumanizeExtensions
 
 public class TimeSpanHumanizeExtensions
 {
-    public string Humanize(System.TimeSpan timeSpan) { }
+    public string Humanize(System.TimeSpan timeSpan, int precision) { }
 }
 
 public class To
@@ -214,4 +255,9 @@ public class To
     public Humanizer.IStringTransformer TitleCase { get; }
     public Humanizer.IStringTransformer UpperCase { get; }
     public string Transform(string input, Humanizer.IStringTransformer[] transformers) { }
+}
+
+public class ToQuantityExtensions
+{
+    public string ToQuantity(string input, int quantity, Humanizer.ShowQuantityAs showQuantityAs) { }
 }

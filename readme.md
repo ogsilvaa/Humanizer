@@ -95,22 +95,41 @@ Hopefully this will help avoid littering enums with unnecessary attributes!
 Dehumanizes a string into the Enum it was originally Humanized from! The API looks like:
 
 ```C#
-public static Enum DehumanizeTo<TTargetEnum>(this string input) 
+public static TTargetEnum DehumanizeTo<TTargetEnum>(this string input) 
 ```
 
 And the usage is:
 
 ```C#
-"Member without description attribute".Dehumanize() => EnumUnderTest.MemberWithoutDescriptionAttribute
+"Member without description attribute".DehumanizeTo<EnumUnderTest>() => EnumUnderTest.MemberWithoutDescriptionAttribute
 ```
 
 And just like the Humanize API it honors the `Description` attribute. You don't have to provide the casing you provided during humanization: it figures it out.
 
+There is also a non-generic counterpart for when the original Enum is not known at compile time:
+
+```C#
+public static Enum DehumanizeTo(this string input, Type targetEnum, NoMatch onNoMatch = NoMatch.ThrowsException) 
+```
+
+which can be used like:
+
+```C#
+"Member without description attribute".DehumanizeTo(typeof(EnumUnderTest)) => EnumUnderTest.MemberWithoutDescriptionAttribute
+```
+
+By default both methods throw a `NoMatchFoundException` when they cannot match the provided input against the target enum. 
+In the non-generic method you can also ask the method to return null by setting the second optiona parameter to `NoMatch.ReturnsNull`.
+
 ###Humanize DateTime
-This is borrowed from [StackOverFlow algorithm](http://stackoverflow.com/a/12/141101) - although I had to apply some minor fixes on top of it. I am not going to bore you with all the examples as I am sure you know what this does: you basically give it an instance of `DateTime` and get back a string telling how far back in time that is:
+You can `Humanize` an instance of `DateTime` and get back a string telling how far back or forward in time that is:
 
 ```C#
 DateTime.UtcNow.AddHours(-30).Humanize() => "yesterday"
+DateTime.UtcNow.AddHours(-2).Humanize() => "2 hours ago"
+
+DateTime.UtcNow.AddHours(30).Humanize() => "tomorrow"
+DateTime.UtcNow.AddHours(2).Humanize() => "2 hours from now"
 ```
 
 Humanizer supports local as well as UTC dates. You could also provide the date you want the input date to be compared against. If null, it will use the current date as comparison base. Here is the API signature:
@@ -119,18 +138,33 @@ Humanizer supports local as well as UTC dates. You could also provide the date y
 public static string Humanize(this DateTime input, bool utcDate = true, DateTime? dateToCompareAgainst = null)
 ```
 
-For dates Humanizer also supports localization.
+Quite a few translations are available for humanized dates.
 
 **No dehumanization for dates as the human friendly date is not reversible**
 
 ###Humanize TimeSpan
-You can call `Humanizes` on a `TimeSpan` to a get human friendly representation for it:
+You can call `Humanize` on a `TimeSpan` to a get human friendly representation for it:
 
 ```C#
 TimeSpan.FromMilliseconds(1).Humanize() => "1 millisecond"
 TimeSpan.FromMilliseconds(2).Humanize() => "2 milliseconds"
 TimeSpan.FromDays(1).Humanize() => "1 day"
-TimeSpan.FromDays(14).Humanize() => "2 weeks"
+TimeSpan.FromDays(16).Humanize() => "2 weeks"
+```
+
+There is an optional `precision` parameter for `TimeSpan.Humanize` which allows you to specify the precision of the returned value. 
+The default value of `precision` is 1 which means only the largest time unit is returned like you saw in `TimeSpan.FromDays(16).Humanize()`.
+Here is a few examples of specifying precision:
+
+```C#
+TimeSpan.FromDays(1).Humanize(precision:2) => "1 day" // no difference when there is only on unit in the provided TimeSpan
+TimeSpan.FromDays(16).Humanize(2) => "2 weeks, 2 days"
+
+// the same TimeSpan value with different precision returns different results
+TimeSpan.FromMilliseconds(1299630020).Humanize() => "2 weeks"
+TimeSpan.FromMilliseconds(1299630020).Humanize(3) => "2 weeks, 1 day, 1 hour"
+TimeSpan.FromMilliseconds(1299630020).Humanize(4) => "2 weeks, 1 day, 1 hour, 30 seconds"
+TimeSpan.FromMilliseconds(1299630020).Humanize(5) => "2 weeks, 1 day, 1 hour, 30 seconds, 20 milliseconds"
 ```
 
 ###Inflector methods
@@ -316,6 +350,140 @@ This is kind of mixing `ToWords` with `Ordinalize`. You can call `ToOrdinalWords
 121.ToOrdinalWords() => "hundred and twenty first"
 ```
 
+###Roman numerals
+Humanizer can change numbers to Roman numerals using the `ToRoman` extension. The numbers 1 to 10 can be expressed in Roman numerals as follows:
+
+```C#
+1.ToRoman() => "I"
+2.ToRoman() => "II"
+3.ToRoman() => "III"
+4.ToRoman() => "IV"
+5.ToRoman() => "V"
+6.ToRoman() => "VI"
+7.ToRoman() => "VII"
+8.ToRoman() => "VIII"
+9.ToRoman() => "IX"
+10.ToRoman() => "X"
+```
+
+Also the reverse operation using the `FromRoman` extension.
+
+```C#
+"I".FromRoman() => 1
+"II".FromRoman() => 2
+"III".FromRoman() => 3
+"IV".FromRoman() => 4
+"V".FromRoman() => 5
+```
+
+###ByteSize
+Humanizer includes a port of the brilliant [ByteSize](https://github.com/omar/ByteSize) library.
+Quite a few changes and additions are made on `ByteSize` to make the interaction with `ByteSize` easier and more consistent with the Humanizer API. 
+Here is a few examples of how you can convert from numbers to byte sizes and between size magnitudes:
+
+```c#
+var fileSize = (10).Kilobytes();
+
+fileSize.Bits      => 81920
+fileSize.Bytes     => 10240
+fileSize.Kilobytes => 10
+fileSize.Megabytes => 0.009765625
+fileSize.Gigabytes => 9.53674316e-6
+fileSize.Terabytes => 9.31322575e-9
+```
+
+There are a few extension methods that allow you to turn a number into a ByteSize instance:
+
+```C#
+3.Bits();
+5.Bytes();
+(10.5).Kilobytes();
+(2.5).Megabytes();
+(10.2).Gigabytes();
+(4.7).Terabytes();
+```
+
+You can also add/subtract the values using +/- operators and Add/Subtract methods:
+
+```C#
+var total = (10).Gigabytes() + (512).Megabytes() - (2.5).Gigabytes();
+total.Subtract((2500).Kilobytes()).Add((25).Megabytes());
+```
+
+A `ByteSize` object contains two properties that represent the largest metric prefix symbol and value:
+
+```C#
+var maxFileSize = (10).Kilobytes();
+
+maxFileSize.LargestWholeNumberSymbol;  // "KB"
+maxFileSize.LargestWholeNumberValue;   // 10
+```
+
+If you want a string representation you can call `ToString` or `Humanize` interchangeably on the `ByteSize` instance:
+
+```C#
+7.Bits().ToString();         // 7 b
+8.Bits().ToString();         // 1 B
+(.5).Kilobytes().Humanize();   // 512 B
+(1000).Kilobytes().ToString(); // 1000 KB
+(1024).Kilobytes().Humanize(); // 1 MB
+(.5).Gigabytes().Humanize();   // 512 MB
+(1024).Gigabytes().ToString(); // 1 TB
+```
+
+You can also optionally provide a format for the expected string representation. 
+The formatter can contain the symbol of the value to display: `b`, `B`, `KB`, `MB`, `GB`, `TB`. 
+The formatter uses the built in [`double.ToString` method](http://msdn.microsoft.com/en-us/library/kfsatb94\(v=vs.110\).aspx) with `#.##` as the default format which rounds the number to two decimal places:
+
+```C#
+var b = (10.505).Kilobytes();
+
+// Default number format is #.##
+b.ToString("KB");         // 10.52 KB
+b.Humanize("MB");         // .01 MB
+b.Humanize("b");          // 86057 b
+
+// Default symbol is the largest metric prefix value >= 1
+b.ToString("#.#");        // 10.5 KB
+
+// All valid values of double.ToString(string format) are acceptable
+b.ToString("0.0000");     // 10.5050 KB
+b.Humanize("000.00");     // 010.51 KB
+
+// You can include number format and symbols
+b.ToString("#.#### MB");  // .0103 MB
+b.Humanize("0.00 GB");    // 0 GB
+b.Humanize("#.## B");     // 10757.12 B
+```
+
+There isn't a `Dehumanize` method to turn a string representation back into a `ByteSize` instance; but you can use `Parse` and `TryParse` on `ByteSize` to do that.
+Like other `TryParse` methods, `ByteSize.TryParse` returns `boolean` value indicating whether or not the parsing was successful. 
+If the value is parsed it is output to the `out` parameter supplied:
+
+```
+ByteSize output;
+ByteSize.TryParse("1.5mb", out output);
+
+// Invalid
+ByteSize.Parse("1.5 b");   // Can't have partial bits
+
+// Valid
+ByteSize.Parse("5b");
+ByteSize.Parse("1.55B");
+ByteSize.Parse("1.55KB");
+ByteSize.Parse("1.55 kB "); // Spaces are trimmed
+ByteSize.Parse("1.55 kb");
+ByteSize.Parse("1.55 MB");
+ByteSize.Parse("1.55 mB");
+ByteSize.Parse("1.55 mb");
+ByteSize.Parse("1.55 GB");
+ByteSize.Parse("1.55 gB");
+ByteSize.Parse("1.55 gb");
+ByteSize.Parse("1.55 TB");
+ByteSize.Parse("1.55 tB");
+ByteSize.Parse("1.55 tb");
+```
+
 ###Mix this into your framework to simplify your life
 This is just a baseline and you can use this to simplify your day to day job. For example, in Asp.Net MVC we keep chucking `Display` attribute on ViewModel properties so `HtmlHelper` can generate correct labels for us; but, just like enums, in vast majority of cases we just need a space between the words in property name - so why not use `"string".Humanize` for that?! 
 
@@ -402,21 +570,42 @@ modelMetadata.DisplayName = modelMetadata.PropertyName.Humanize().Transform(To.T
 ```
 
 ##How to contribute?
-Your contribution to Humanizer would be very welcome. If you find a bug, please raise it as an issue. Even better fix it and send me a pull request. If you like to help me out with existing bugs and feature requests just check out the list of [issues](https://github.com/MehdiK/Humanizer/issues) and grab and fix one. I have also flagged some of the easier issues as 'jump in' so you can start with easier tasks.
+Your contribution to Humanizer would be very welcome. 
+If you find a bug, please raise it as an issue. 
+Even better fix it and send me a pull request. 
+If you like to help me out with existing bugs and feature requests just check out the list of [issues](https://github.com/MehdiK/Humanizer/issues) and grab and fix one. 
+I have also flagged some of the easier issues as 'jump in' so you can start with easier tasks.
 
-I use [GitHub flow](http://scottchacon.com/2011/08/31/github-flow.html) for pull requests. So if you want to contribute, fork the repo, fix an issue and send a PR.
+###Contribution guideline
+I use [GitHub flow](http://scottchacon.com/2011/08/31/github-flow.html) for pull requests. 
+So if you want to contribute, fork the repo, preferrably create a local branch to avoid conflicts with other activities, fix an issue and send a PR.
 
-####Need your help with localisation
-One area Humanizer could always use your help is localisation. Currently Humanizer [supports](https://github.com/MehdiK/Humanizer/tree/master/src/Humanizer/Properties) French, Belgium, Spanish, Greek, German, Arabic, Russian and Romanian languages for `Date.Humanize` method. 
-Humanizer could definitely do with more translations. `TimeSpan.Humanize` also requires translations.
+Pull requests are code reviewed. Here is what I look for in your pull request:
 
-To add a translation, fork the repository if you haven't done yet, duplicate the [resources.resx](https://github.com/MehdiK/Humanizer/blob/master/src/Humanizer/Properties/Resources.resx) file, add your target [locale code](http://msdn.microsoft.com/en-us/library/hh441729.aspx) to the end (e.g. resources.ru.resx for Russian), translate the values to your language, commit, and send a pull request for it. Thanks.
+ - Clean implementation
+ - Very little or no comments because comments shouldn't be needed if you write clean code
+ - Xml documentation for new extensions or updating the existing documentation when you make a change
+ - Proper unit test coverage 
+ - Adherence to the existing coding styles
+ - Updated readme if you change an existing feature or add something
+ - Add an entry in the release_notes.md file in the 'In Development' section with a link to your PR link and description of what's changed. Please follow the wording style for the description.
+
+Also please link to the issue(s) you're fixing from your PR description.
+
+###Need your help with localisation
+One area Humanizer could always use your help is localisation. 
+Currently Humanizer [supports](https://github.com/MehdiK/Humanizer/tree/master/src/Humanizer/Properties) quite a few localisations for `Date.Humanize` and a few for `TimeSpan.Humanize` methods. 
+There is also ongoing effort to add localisation to `ToWords` extension method which currently only supports English and Arabic.
+
+Humanizer could definitely do with more translations. To add a translation, fork the repository if you haven't done yet, duplicate the [resources.resx](https://github.com/MehdiK/Humanizer/blob/master/src/Humanizer/Properties/Resources.resx) file, add your target [locale code](http://msdn.microsoft.com/en-us/library/hh441729.aspx) to the end (e.g. resources.ru.resx for Russian), translate the values to your language, commit, and send a pull request for it. Thanks.
 
 Some languages have complex rules when it comes to dealing with numbers; for example, in Romanian "5 days" is "5 zile", while "24 days" is "24 de zile" and in Arabic "2 days" is "يومين" not "2 يوم".
 Obviously a normal resource file doesn't cut it in these cases as a more complex mapping is required.
 In cases like this in addition to creating a resource file you should also subclass [`DefaultFormatter`](https://github.com/MehdiK/Humanizer/blob/master/src/Humanizer/Localisation/DefaultFormatter.cs) in a class that represents your language; 
 e.g. [RomanianFormatter](https://github.com/MehdiK/Humanizer/blob/master/src/Humanizer/Localisation/RomanianFormatter.cs) and then override the methods that need involve the complex rules. We think overriding the `GetResourceKey` method should be enough. To see how to do that check out `RomanianFormatter` and `RussianFormatter`. 
 Then you return an instance of your class in the [Configurator](https://github.com/MehdiK/Humanizer/blob/master/src/Humanizer/Configuration/Configurator.cs) class in the getter of the [Formatter property](https://github.com/MehdiK/Humanizer/blob/master/src/Humanizer/Configuration/Configurator.cs#L11) based on the current culture.
+
+Translations for ToWords method are currently done in code as there is a huge difference between the way different languages deal with number words.
 
 ### Continuous Integration from TeamCity
 Humanizer project is built & tested continuously by TeamCity (more details [here](http://www.mehdi-khalili.com/continuous-integration-delivery-github-teamcity)). That applies to pull requests too. Shortly after you submit a PR you can check the build and test status notification on your PR. I would appreciate if you could send me green PRs.
@@ -428,4 +617,5 @@ The current build status on the CI server is <a href="http://teamcity.ginnivan.n
 Mehdi Khalili ([@MehdiKhalili](http://twitter.com/MehdiKhalili))
 
 ###License
-Humanizer is released under the MIT License. See the bundled LICENSE file for details.
+Humanizer is released under the MIT License. See the [bundled LICENSE](https://github.com/MehdiK/Humanizer/blob/master/LICENSE) file for details.
+
