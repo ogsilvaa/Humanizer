@@ -1,24 +1,33 @@
-﻿using ApiApprover;
+﻿using System.IO;
+using ApiApprover;
 using ApprovalTests;
 using ApprovalTests.Reporters;
+using Mono.Cecil;
+using Xunit;
 
 namespace Humanizer.Tests.ApiApprover
 {
     public class PublicApiApprovalTest
     {
-        // This is set to run in Debug Only because it was failing on the CI server
-        // ToDo: Would be nice to run this in CI as well
-        [RunnableInDebugOnly]
+        [Fact]
+        [UseCulture("en-US")]
         [UseReporter(typeof(DiffReporter))] 
+        [IgnoreLineEndings(true)]
         public void approve_public_api()
         {
-            // arrange
-            var assembly = typeof(StringHumanizeExtensions).Assembly;
+            var assemblyPath = typeof(StringHumanizeExtensions).Assembly.Location;
 
-            // act
-            var publicApi = PublicApiGenerator.CreatePublicApiForAssembly(assembly);
+            var assemblyResolver = new DefaultAssemblyResolver();
+            assemblyResolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
 
-            // assert
+            var readSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb"));
+            var asm = AssemblyDefinition.ReadAssembly(assemblyPath, new ReaderParameters(ReadingMode.Deferred)
+            {
+                ReadSymbols = readSymbols,
+                AssemblyResolver = assemblyResolver
+            });
+
+            var publicApi = PublicApiGenerator.CreatePublicApiForAssembly(asm);
             Approvals.Verify(publicApi);
         }
     }

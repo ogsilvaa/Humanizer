@@ -2,6 +2,9 @@
 
 namespace Humanizer
 {
+    /// <summary>
+    /// Contains extension methods for dehumanizing strings.
+    /// </summary>
     public static class StringDehumanizeExtensions
     {
         /// <summary>
@@ -11,11 +14,8 @@ namespace Humanizer
         /// <returns></returns>
         public static string Dehumanize(this string input)
         {
-            var titlizedWords = 
-                (from word in input.Split(' ')
-                select word.Humanize(LetterCasing.Title));
-
-            return string.Join("", titlizedWords);
+            var titlizedWords = input.Split(' ').Select(word => word.Humanize(LetterCasing.Title));
+            return string.Join("", titlizedWords).Replace(" ", "");
         }
     }
 }

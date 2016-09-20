@@ -1,12 +1,20 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using Humanizer.Configuration;
+using System.Collections.Generic;
 
 namespace Humanizer
 {
+    /// <summary>
+    /// Contains extension methods for humanizing Enums
+    /// </summary>
     public static class EnumHumanizeExtensions
     {
-        private static readonly Func<PropertyInfo, bool> DescriptionProperty = p => p.Name == "Description" && p.PropertyType == typeof (string);
+        private const string DisplayAttributeTypeName = "System.ComponentModel.DataAnnotations.DisplayAttribute";
+        private const string DisplayAttributeGetDescriptionMethodName = "GetDescription";
+
+        private static readonly Func<PropertyInfo, bool> StringTypedProperty = p => p.PropertyType == typeof(string);
 
         /// <summary>
         /// Turns an enum member into a human readable string; e.g. AnonymousUser -> Anonymous user. It also honors DescriptionAttribute data annotation
@@ -15,18 +23,40 @@ namespace Humanizer
         /// <returns></returns>
         public static string Humanize(this Enum input)
         {
-            Type type = input.GetType();
-            var memInfo = type.GetMember(input.ToString());
+            var enumType = input.GetType();
+            var enumTypeInfo = enumType.GetTypeInfo();
 
-            if (memInfo.Length > 0)
+            if (IsBitFieldEnum(enumTypeInfo) && !Enum.IsDefined(enumType, input))
             {
-                var customDescription = GetCustomDescription(memInfo[0]);
+                return Enum.GetValues(enumType)
+                           .Cast<Enum>()
+                           .Where(e => input.HasFlag(e))
+                           .Select(e => e.Humanize())
+                           .Humanize();
+            }
+
+            var caseName = input.ToString();
+            var memInfo = enumTypeInfo.GetDeclaredField(caseName);
+
+            if (memInfo != null)
+            {
+                var customDescription = GetCustomDescription(memInfo);
 
                 if (customDescription != null)
                     return customDescription;
             }
 
-            return input.ToString().Humanize();
+            return caseName.Humanize();
+        }
+
+        /// <summary>
+        /// Checks whether the given enum is to be used as a bit field type.
+        /// </summary>
+        /// <param name="typeInfo"></param>
+        /// <returns>True if the given enum is a bit field enum, false otherwise.</returns>
+        private static bool IsBitFieldEnum(TypeInfo typeInfo)
+        {
+            return typeInfo.GetCustomAttribute(typeof(FlagsAttribute)) != null;
         }
 
         // I had to add this method because PCL doesn't have DescriptionAttribute & I didn't want two versions of the code & thus the reflection
@@ -37,15 +67,18 @@ namespace Humanizer
             foreach (var attr in attrs)
             {
                 var attrType = attr.GetType();
-                if (attrType.FullName == "System.ComponentModel.DescriptionAttribute")
+                if (attrType.FullName == DisplayAttributeTypeName)
                 {
-                    var descriptionProperty = attrType.GetProperties().FirstOrDefault(DescriptionProperty);
-                    if (descriptionProperty != null)
-                    {
-                        //we have a hit
-                        return descriptionProperty.GetValue(attr, null).ToString();
-                    }
+                    var method = attrType.GetRuntimeMethod(DisplayAttributeGetDescriptionMethodName, new Type[0]);
+                    if (method != null)
+                        return method.Invoke(attr, new object[0]).ToString();
                 }
+                var descriptionProperty =
+                    attrType.GetRuntimeProperties()
+                        .Where(StringTypedProperty)
+                        .FirstOrDefault(Configurator.EnumDescriptionPropertyLocator);
+                if (descriptionProperty != null)
+                    return descriptionProperty.GetValue(attr, null).ToString();
             }
 
             return null;

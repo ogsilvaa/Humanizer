@@ -1,12 +1,34 @@
+//The MIT License (MIT)
+
+//Copyright (c) 2013-2014 Omar Khudeira (http://omar.io)
+
+//Permission is hereby granted, free of charge, to any person obtaining a copy
+//of this software and associated documentation files (the "Software"), to deal
+//in the Software without restriction, including without limitation the rights
+//to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//copies of the Software, and to permit persons to whom the Software is
+//furnished to do so, subject to the following conditions:
+
+//The above copyright notice and this permission notice shall be included in
+//all copies or substantial portions of the Software.
+
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//THE SOFTWARE.
+
 using System;
 
-// ReSharper disable CSharpWarnings::CS1591
 namespace Humanizer.Bytes
 {
     /// <summary>
     /// Represents a byte size value.
     /// </summary>
-    public struct ByteSize : IComparable<ByteSize>, IEquatable<ByteSize>
+#pragma warning disable 1591
+    public struct ByteSize : IComparable<ByteSize>, IEquatable<ByteSize>, IComparable
     {
         public static readonly ByteSize MinValue = FromBits(long.MinValue);
         public static readonly ByteSize MaxValue = FromBits(long.MaxValue);
@@ -125,7 +147,7 @@ namespace Humanizer.Bytes
         /// Converts the value of the current ByteSize object to a string.
         /// The metric prefix symbol (bit, byte, kilo, mega, giga, tera) used is
         /// the largest metric prefix such that the corresponding value is greater
-        //  than or equal to one.
+        ///  than or equal to one.
         /// </summary>
         public override string ToString()
         {
@@ -135,7 +157,7 @@ namespace Humanizer.Bytes
         public string ToString(string format)
         {
             if (!format.Contains("#") && !format.Contains("0"))
-                format = "#.## " + format;
+                format = "0.## " + format;
 
             Func<string, bool> has = s => format.IndexOf(s, StringComparison.CurrentCultureIgnoreCase) != -1;
             Func<double, string> output = n => n.ToString(format);
@@ -156,7 +178,13 @@ namespace Humanizer.Bytes
             if (format.IndexOf(BitSymbol, StringComparison.Ordinal) != -1)
                 return output(Bits);
 
-            return string.Format("{0} {1}", LargestWholeNumberValue.ToString(format), LargestWholeNumberSymbol);
+            var formattedLargeWholeNumberValue = LargestWholeNumberValue.ToString(format);
+
+            formattedLargeWholeNumberValue = formattedLargeWholeNumberValue.Equals(string.Empty)
+                                              ? "0"
+                                              : formattedLargeWholeNumberValue;
+
+            return string.Format("{0} {1}", formattedLargeWholeNumberValue, LargestWholeNumberSymbol);
         }
 
         public override bool Equals(object value)
@@ -183,6 +211,17 @@ namespace Humanizer.Bytes
             return Bits.GetHashCode();
         }
 
+        public int CompareTo(object obj)
+        {
+            if (obj == null)
+                return 1;
+
+            if (!(obj is ByteSize))
+                throw new ArgumentException("Object is not a ByteSize");
+
+            return CompareTo((ByteSize) obj);
+        }
+
         public int CompareTo(ByteSize other)
         {
             return Bits.CompareTo(other.Bits);
@@ -190,12 +229,12 @@ namespace Humanizer.Bytes
 
         public ByteSize Add(ByteSize bs)
         {
-            return new ByteSize(Bits + bs.Bits);
+            return new ByteSize(Bytes + bs.Bytes);
         }
 
         public ByteSize AddBits(long value)
         {
-            return new ByteSize(Bits + value);
+            return this + FromBits(value);
         }
 
         public ByteSize AddBytes(double value)
@@ -225,27 +264,27 @@ namespace Humanizer.Bytes
 
         public ByteSize Subtract(ByteSize bs)
         {
-            return new ByteSize(Bits - bs.Bits);
+            return new ByteSize(Bytes - bs.Bytes);
         }
 
         public static ByteSize operator +(ByteSize b1, ByteSize b2)
         {
-            return new ByteSize(b1.Bits + b2.Bits);
+            return new ByteSize(b1.Bytes + b2.Bytes);
         }
 
         public static ByteSize operator ++(ByteSize b)
         {
-            return new ByteSize(b.Bits++);
+            return new ByteSize(b.Bytes + 1);
         }
 
         public static ByteSize operator -(ByteSize b)
         {
-            return new ByteSize(-b.Bits);
+            return new ByteSize(-b.Bytes);
         }
 
         public static ByteSize operator --(ByteSize b)
         {
-            return new ByteSize(b.Bits--);
+            return new ByteSize(b.Bytes - 1);
         }
 
         public static bool operator ==(ByteSize b1, ByteSize b2)
@@ -282,7 +321,7 @@ namespace Humanizer.Bytes
         {
             // Arg checking
             if (string.IsNullOrWhiteSpace(s))
-                throw new ArgumentNullException("s", "String is null or whitespace");
+                throw new ArgumentNullException(nameof(s), "String is null or whitespace");
 
             // Setup the result
             result = new ByteSize();
@@ -293,9 +332,12 @@ namespace Humanizer.Bytes
             int num;
             var found = false;
 
+            // Acquiring culture specific decimal separator
+			var decSep = Convert.ToChar(System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator);
+                
             // Pick first non-digit number
             for (num = 0; num < s.Length; num++)
-                if (!(char.IsDigit(s[num]) || s[num] == '.'))
+                if (!(char.IsDigit(s[num]) || s[num] == decSep))
                 {
                     found = true;
                     break;
@@ -304,11 +346,11 @@ namespace Humanizer.Bytes
             if (found == false)
                 return false;
 
-            int lastNumber = num;
+            var lastNumber = num;
 
             // Cut the input string in half
-            string numberPart = s.Substring(0, lastNumber).Trim();
-            string sizePart = s.Substring(lastNumber, s.Length - lastNumber).Trim();
+            var numberPart = s.Substring(0, lastNumber).Trim();
+            var sizePart = s.Substring(lastNumber, s.Length - lastNumber).Trim();
 
             // Get the numeric part
             double number;
@@ -363,4 +405,4 @@ namespace Humanizer.Bytes
         }
     }
 }
-// ReSharper restore CSharpWarnings::CS1591
+#pragma warning restore 1591

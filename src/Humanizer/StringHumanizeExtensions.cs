@@ -4,37 +4,37 @@ using System.Text.RegularExpressions;
 
 namespace Humanizer
 {
+    /// <summary>
+    /// Contains extension methods for humanizing string values.
+    /// </summary>
     public static class StringHumanizeExtensions
     {
+        private static readonly Regex PascalCaseWordPartsRegex;
+        private static readonly Regex FreestandingSpacingCharRegex;
+
+        static StringHumanizeExtensions()
+        {
+            PascalCaseWordPartsRegex = new Regex(@"[\p{Lu}]?[\p{Ll}]+|[0-9]+[\p{Ll}]*|[\p{Lu}]+(?=[\p{Lu}][\p{Ll}]|[0-9]|\b)",
+                RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptionsUtil.Compiled);
+            FreestandingSpacingCharRegex = new Regex(@"\s[-_]|[-_]\s", RegexOptionsUtil.Compiled);
+        }
+
         static string FromUnderscoreDashSeparatedWords (string input)
         {
-            return String.Join(" ", input.Split(new[] {'_', '-'}));
+            return string.Join(" ", input.Split(new[] {'_', '-'}));
         }
 
         static string FromPascalCase(string input)
         {
-            var pascalCaseWordBoundaryRegex = new Regex(@"
-(?# word to word, number or acronym)
-(?<=[a-z])(?=[A-Z0-9])|
-(?# number to word or acronym)
-(?<=[0-9])(?=[A-Za-z])|
-(?# acronym to number)
-(?<=[A-Z])(?=[0-9])|
-(?# acronym to word)
-(?<=[A-Z])(?=[A-Z][a-z])
-", RegexOptions.IgnorePatternWhitespace);
+            var result = string.Join(" ", PascalCaseWordPartsRegex
+                .Matches(input).Cast<Match>()
+                .Select(match => match.Value.ToCharArray().All(char.IsUpper) &&
+                    (match.Value.Length > 1 || (match.Index > 0 && input[match.Index - 1] == ' ') || match.Value == "I")
+                    ? match.Value
+                    : match.Value.ToLower()));
 
-            var result = pascalCaseWordBoundaryRegex
-                .Split(input)
-                .Select(word =>
-                    word.ToCharArray().All(Char.IsUpper) && word.Length > 1
-                        ? word
-                        : word.ToLower())
-                .Aggregate((res, word) => res + " " + word);
-
-            result = Char.ToUpper(result[0]) +
-                result.Substring(1, result.Length - 1);
-            return result.Replace(" i ", " I "); // I is an exception
+            return result.Length > 0 ? char.ToUpper(result[0]) +
+                result.Substring(1, result.Length - 1) : result;
         }
 
         /// <summary>
@@ -45,8 +45,13 @@ namespace Humanizer
         public static string Humanize(this string input)
         {
             // if input is all capitals (e.g. an acronym) then return it without change
-            if (input.ToCharArray().All(Char.IsUpper))
+            if (input.ToCharArray().All(char.IsUpper))
                 return input;
+
+            // if input contains a dash or underscore which preceeds or follows a space (or both, e.g. free-standing)
+            // remove the dash/underscore and run it through FromPascalCase
+            if (FreestandingSpacingCharRegex.IsMatch(input))
+                return FromPascalCase(FromUnderscoreDashSeparatedWords(input));
 
             if (input.Contains("_") || input.Contains("-"))
                 return FromUnderscoreDashSeparatedWords(input);

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace Humanizer
 {
@@ -17,7 +17,7 @@ namespace Humanizer
                 else if(word.Length == 1)
                     result.Add(word.ToUpper());
                 else 
-                    result.Add(Char.ToUpper(word[0]) + word.Remove(0, 1).ToLower());
+                    result.Add(char.ToUpper(word[0]) + word.Remove(0, 1).ToLower());
             }
 
             return string.Join(" ", result);
@@ -25,7 +25,7 @@ namespace Humanizer
 
         static bool AllCapitals(string input)
         {
-            return Regex.IsMatch(input, @"^[A-Z]+$");
+            return input.ToCharArray().All(char.IsUpper);
         }
     }
 }
