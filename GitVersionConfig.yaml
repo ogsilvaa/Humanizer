@@ -1,5 +1,4 @@
 assembly-versioning-scheme: MajorMinorPatch
-mode: ContinuousDelivery
 tag-prefix: '[vV]'
 continuous-delivery-fallback-tag: ci
 next-version: 2.0.0
@@ -11,44 +10,37 @@ build-metadata-padding: 4
 commit-message-incrementing: Enabled
 branches:
   master:
-    mode: ContinuousDelivery
     tag:
     increment: Patch
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
-  releases?[/-]:
-    mode: ContinuousDelivery
+  release:
     tag: beta
     increment: Patch
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
-  features?[/-]:
-    mode: ContinuousDelivery
+  feature:
     tag: useBranchName
     increment: Inherit
     prevent-increment-of-merged-branch-version: false
     track-merge-target: false
-  (pull|pull\-requests|pr)[/-]:
-    mode: ContinuousDelivery
+  pull-request:
     tag: PullRequest
     increment: Inherit
     prevent-increment-of-merged-branch-version: false
     tag-number-pattern: '[/-](?<number>\d+)[-/]'
     track-merge-target: false
-  hotfix(es)?[/-]:
-    mode: ContinuousDelivery
+  hotfix:
     tag: beta
     increment: Patch
     prevent-increment-of-merged-branch-version: false
     track-merge-target: false
-  support[/-]:
-    mode: ContinuousDelivery
+  support:
     tag:
     increment: Patch
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
-  dev(elop)?(ment)?$:
-    mode: ContinuousDelivery
+  develop:
     tag: beta
     increment: Minor
     prevent-increment-of-merged-branch-version: false
